@@ -1,0 +1,117 @@
+name: Infrastructure plan
+
+# Runs on every pull request that touches Terraform. Read-only: it never
+# applies. The plan is attached to the run and posted as a PR comment.
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infra-plan.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    # The Terraform role trusts only environment-scoped tokens, so a PR job
+    # without an environment cannot assume it. The environment also gates the
+    # plan behind the same reviewer as apply.
+    environment: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TF_ARN }}
+          aws-region: ${{ vars.AWS_REGION_PRIMARY }}
+          role-session-name: drlab-plan-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.1"
+
+      - name: Terraform format
+        run: terraform fmt -check -recursive terraform
+
+      - name: Validate every root
+        run: |
+          for root in bootstrap persistent ephemeral; do
+            echo "::group::validate $root"
+            terraform -chdir="terraform/$root" init -backend=false -input=false -no-color
+            terraform -chdir="terraform/$root" validate -no-color
+            echo "::endgroup::"
+          done
+
+      - name: Write backend configuration
+        run: |
+          cat > terraform/persistent/backend.hcl <<EOF
+          bucket       = "${{ vars.TF_STATE_BUCKET }}"
+          region       = "${{ vars.AWS_REGION_PRIMARY }}"
+          use_lockfile = true
+          encrypt      = true
+          EOF
+          cp terraform/persistent/backend.hcl terraform/ephemeral/backend.hcl
+
+      - name: Plan persistent
+        run: |
+          terraform -chdir=terraform/persistent init -input=false -no-color
+          terraform -chdir=terraform/persistent plan -input=false -no-color \
+            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
+            -var="alert_email=${{ vars.ALERT_EMAIL }}" \
+            | tee persistent-plan.txt
+
+      - name: Plan ephemeral
+        continue-on-error: true
+        run: |
+          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          terraform -chdir=terraform/ephemeral plan -input=false -no-color \
+            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
+            | tee ephemeral-plan.txt
+
+      - name: Upload plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plans
+          path: "*-plan.txt"
+          retention-days: 7
+
+      - name: Comment the plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const read = (p) => fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '(not produced)';
+            const clip = (s) => s.length > 55000 ? s.slice(0, 55000) + '\n...truncated' : s;
+            const body = [
+              '### Terraform plan',
+              '<details><summary>persistent</summary>',
+              '',
+              '```hcl',
+              clip(read('persistent-plan.txt')),
+              '```',
+              '</details>',
+              '<details><summary>ephemeral</summary>',
+              '',
+              '```hcl',
+              clip(read('ephemeral-plan.txt')),
+              '```',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

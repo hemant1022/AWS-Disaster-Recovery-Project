@@ -1,0 +1,10 @@
+# Written from the bootstrap output:
+#   terraform -chdir=terraform/bootstrap output -raw backend_hcl > terraform/persistent/backend.hcl
+#
+# Then initialise with:
+#   terraform -chdir=terraform/persistent init -backend-config=backend.hcl
+
+bucket       = "drlab-tfstate-305678528024-us-east-1"
+region       = "us-east-1"
+use_lockfile = true
+encrypt      = true

@@ -1,0 +1,56 @@
+name: Teardown
+
+# Destroys the ephemeral root and then proves nothing billable survived.
+# Run this at the end of every session, before closing the laptop.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DESTROY to confirm"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  destroy:
+    if: inputs.confirm == 'DESTROY'
+    runs-on: ubuntu-latest
+    environment: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TF_ARN }}
+          aws-region: ${{ vars.AWS_REGION_PRIMARY }}
+          role-session-name: drlab-teardown-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.1"
+
+      - name: Write backend configuration
+        run: |
+          cat > terraform/ephemeral/backend.hcl <<EOF
+          bucket       = "${{ vars.TF_STATE_BUCKET }}"
+          region       = "${{ vars.AWS_REGION_PRIMARY }}"
+          use_lockfile = true
+          encrypt      = true
+          EOF
+
+      - name: Destroy
+        run: |
+          pip install -r requirements-dev.txt
+          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          python scripts/teardown.py --yes
+
+      - name: Publish the check
+        if: always()
+        run: |
+          echo "### Teardown" >> "$GITHUB_STEP_SUMMARY"
+          echo "verify_empty exit status is in the previous step." >> "$GITHUB_STEP_SUMMARY"

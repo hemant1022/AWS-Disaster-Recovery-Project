@@ -1,0 +1,25 @@
+# Copy to terraform.tfvars (git-ignored) and replace domain_name.
+#
+# domain_name must match the zone created by the persistent root.
+
+project        = "drlab"
+primary_region = "us-east-1"
+dr_region      = "us-east-2"
+
+domain_name = "dr-demo.example.com"
+
+app_port       = 8080
+instance_type  = "t3.micro"
+
+db_instance_class = "db.t3.micro"
+db_name           = "drlab"
+db_username       = "drlab_admin"
+
+write_interval_ms = 200
+ledger_flush_ms   = 2000
+
+health_check_request_interval  = 10
+health_check_failure_threshold = 3
+dns_ttl                        = 60
+
+replica_lag_alarm_seconds = 60

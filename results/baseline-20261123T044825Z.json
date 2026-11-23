@@ -1,0 +1,24 @@
+{
+  "drill": "baseline",
+  "window": {
+    "start": "2026-11-23T04:48:25.017978Z",
+    "end": "2026-11-23T04:53:32.008897Z",
+    "seconds": 307.0
+  },
+  "rows": {
+    "committed": 1387,
+    "rejected": 0,
+    "per_second": 4.518,
+    "max_id_start": 12020,
+    "max_id_end": 13407
+  },
+  "replication_lag_seconds": {
+    "samples": 18,
+    "p50": 0.0,
+    "p95": 1.0,
+    "max": 1.0,
+    "mean": 0.39
+  },
+  "healthy": true,
+  "recorded_at": "2026-11-23T04:53:32.010420Z"
+}

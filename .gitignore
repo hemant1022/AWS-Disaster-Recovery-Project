@@ -221,3 +221,33 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.env/
+
+# --- Project: secrets and local config ---
+.env
+.env.*
+!.env.example
+*.tfvars
+backend.hcl
+
+# --- Terraform ---
+.terraform/
+.terraform.tfstate.lock.info
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# --- Local tooling ---
+.DS_Store
+Thumbs.db
+
+# --- Local deploy artifacts ---
+.image-tag
+.image-digest
+.tmp-*

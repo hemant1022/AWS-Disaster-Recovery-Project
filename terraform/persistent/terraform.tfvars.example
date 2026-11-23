@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars (git-ignored) and replace the two required values.
+
+project        = "drlab"
+primary_region = "us-east-1"
+dr_region      = "us-east-2"
+
+# Required. Must match the FreeDNS subdomain you delegate to this zone.
+domain_name = "dr-demo.example.com"
+
+# Required. Confirms the SNS subscription by email.
+alert_email = "you@example.com"
+
+github_repo                 = "hemant1022/AWS-Disaster-Recovery-Project"
+github_environment_app      = "app-deploy"
+github_environment_terraform = "terraform"
+github_environment_drill    = "drill"
+
+evidence_retention_days = 30

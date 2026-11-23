@@ -1,0 +1,21 @@
+{
+  "drill": "rehearsal",
+  "fault": "none",
+  "regions": {
+    "primary": "us-east-1",
+    "recovery": "us-east-2"
+  },
+  "preflight": {
+    "primary_health": "ok",
+    "standby_health": "ok",
+    "primary_writable": true,
+    "replica_lag_seconds": 1.0,
+    "primary_max_id": 12528,
+    "standby_max_id": 11690,
+    "standby_committed": 0,
+    "standby_rejected": 860
+  },
+  "no_damage": true,
+  "note": "no fault injected, no promotion, no DNS change",
+  "recorded_at": "2026-11-23T04:50:12.855661Z"
+}

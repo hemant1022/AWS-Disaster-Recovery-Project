@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (git-ignored) and adjust if needed.
+
+project      = "drlab"
+state_region = "us-east-1"

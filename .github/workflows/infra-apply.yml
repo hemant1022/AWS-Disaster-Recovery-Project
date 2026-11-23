@@ -1,0 +1,77 @@
+name: Infrastructure apply
+
+# Manual only. The ephemeral root is never applied on push: a pipeline that
+# reconciles continuously would revert every fault injection within one run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      root:
+        description: "Terraform root to apply"
+        type: choice
+        options: [persistent, ephemeral]
+        required: true
+      confirm:
+        description: "Type APPLY to confirm"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  apply:
+    if: inputs.confirm == 'APPLY'
+    runs-on: ubuntu-latest
+    environment: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TF_ARN }}
+          aws-region: ${{ vars.AWS_REGION_PRIMARY }}
+          role-session-name: drlab-apply-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.1"
+
+      - name: Write backend configuration
+        run: |
+          cat > terraform/persistent/backend.hcl <<EOF
+          bucket       = "${{ vars.TF_STATE_BUCKET }}"
+          region       = "${{ vars.AWS_REGION_PRIMARY }}"
+          use_lockfile = true
+          encrypt      = true
+          EOF
+          cp terraform/persistent/backend.hcl terraform/ephemeral/backend.hcl
+
+      - name: Apply persistent
+        if: inputs.root == 'persistent'
+        run: |
+          terraform -chdir=terraform/persistent init -input=false -no-color
+          terraform -chdir=terraform/persistent apply -auto-approve -input=false -no-color \
+            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
+            -var="alert_email=${{ vars.ALERT_EMAIL }}"
+
+      - name: Apply ephemeral
+        if: inputs.root == 'ephemeral'
+        run: |
+          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          terraform -chdir=terraform/ephemeral apply -auto-approve -input=false -no-color \
+            -var="domain_name=${{ vars.DOMAIN_NAME }}"
+
+      - name: Publish outputs
+        run: |
+          terraform -chdir="terraform/${{ inputs.root }}" output -json \
+            > "${{ inputs.root }}-outputs.json"
+          echo "```json" >> "$GITHUB_STEP_SUMMARY"
+          cat "${{ inputs.root }}-outputs.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "```" >> "$GITHUB_STEP_SUMMARY"

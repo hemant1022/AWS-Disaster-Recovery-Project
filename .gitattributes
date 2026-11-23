@@ -1,0 +1,19 @@
+# Normalize line endings on checkout so shell scripts and Terraform files are usable
+# from any platform. Without this, a Windows checkout produces bash scripts with CRLF
+# and user-data fails with "bad interpreter: /bin/bash^M".
+* text=auto
+
+*.sh      text eol=lf
+*.tftpl   text eol=lf
+*.tf      text eol=lf
+*.hcl     text eol=lf
+*.tfvars  text eol=lf
+Dockerfile text eol=lf
+
+*.ps1     text eol=crlf
+
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.pdf     binary

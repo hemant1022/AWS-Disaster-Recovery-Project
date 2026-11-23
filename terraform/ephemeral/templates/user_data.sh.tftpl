@@ -1,0 +1,116 @@
+#!/bin/bash
+# Rendered by Terraform at instance launch. Installs the runtime and writes the
+# start script, but deliberately does NOT start the application: the deploy
+# workflow writes /opt/drlab/image.env and then starts the unit. A standby that
+# boots without an image is a correct state, not a failed boot.
+
+set -euo pipefail
+
+exec > >(tee -a /var/log/drlab-bootstrap.log) 2>&1
+
+echo "drlab bootstrap starting"
+
+# --- Docker -----------------------------------------------------------------
+if ! command -v docker >/dev/null 2>&1; then
+  dnf install -y docker
+fi
+systemctl enable --now docker
+
+# --- AWS CLI ----------------------------------------------------------------
+if ! command -v aws >/dev/null 2>&1; then
+  dnf install -y awscli-2 || dnf install -y awscli
+fi
+
+# --- SSM agent --------------------------------------------------------------
+systemctl enable --now amazon-ssm-agent
+
+install -d -m 0755 /opt/drlab
+
+# --- Static configuration, written once at launch ---------------------------
+{
+  echo "APP_REGION=${region}"
+  echo "SSM_PREFIX=${ssm_prefix}"
+  echo "LEDGER_BUCKET=${evidence_bucket}"
+  echo "LEDGER_PREFIX=${ledger_prefix}"
+  echo "STATE_KEY=${state_key}"
+  echo "APP_PORT=${app_port}"
+  echo "WRITE_INTERVAL_MS=${write_interval_ms}"
+  echo "LEDGER_FLUSH_MS=${ledger_flush_ms}"
+} > /opt/drlab/config.env
+chmod 0644 /opt/drlab/config.env
+
+# --- Start script -----------------------------------------------------------
+cat > /opt/drlab/run.sh <<'RUNEOF'
+#!/bin/bash
+set -euo pipefail
+
+CONFIG=/opt/drlab/config.env
+IMAGE_ENV=/opt/drlab/image.env
+
+# shellcheck disable=SC1090
+. "$CONFIG"
+
+if [ ! -f "$IMAGE_ENV" ]; then
+  echo "no image deployed yet: $IMAGE_ENV is missing" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+. "$IMAGE_ENV"
+
+if [ -z "$${APP_IMAGE:-}" ]; then
+  echo "APP_IMAGE is empty in $IMAGE_ENV" >&2
+  exit 1
+fi
+
+REGISTRY="$${APP_IMAGE%%/*}"
+aws ecr get-login-password --region "$APP_REGION" \
+  | docker login --username AWS --password-stdin "$REGISTRY"
+
+docker pull "$APP_IMAGE"
+
+docker rm -f drlab-app >/dev/null 2>&1 || true
+
+# No secrets on this command line. The container reads the database password
+# from SSM itself, so nothing sensitive lands in docker inspect or /proc.
+docker run -d \
+  --name drlab-app \
+  --restart unless-stopped \
+  -p "$${APP_PORT}:$${APP_PORT}" \
+  -e AWS_REGION="$APP_REGION" \
+  -e SSM_PREFIX="$SSM_PREFIX" \
+  -e LEDGER_BUCKET="$LEDGER_BUCKET" \
+  -e LEDGER_PREFIX="$LEDGER_PREFIX" \
+  -e STATE_KEY="$STATE_KEY" \
+  -e APP_PORT="$APP_PORT" \
+  -e WRITE_INTERVAL_MS="$WRITE_INTERVAL_MS" \
+  -e LEDGER_FLUSH_MS="$LEDGER_FLUSH_MS" \
+  -e HEALTH_DB_CHECK=true \
+  "$APP_IMAGE"
+RUNEOF
+
+chmod 0755 /opt/drlab/run.sh
+
+# --- systemd unit -----------------------------------------------------------
+# Type=oneshot with RemainAfterExit: `systemctl start` runs the script once and
+# docker's own restart policy keeps the container alive afterwards.
+cat > /etc/systemd/system/drlab-app.service <<'UNITEOF'
+[Unit]
+Description=DR lab application container
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/drlab/run.sh
+ExecStop=/usr/bin/docker rm -f drlab-app
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+
+systemctl daemon-reload
+
+echo "drlab bootstrap complete"

@@ -1,0 +1,79 @@
+name: DR drill
+
+# Manual dispatch is the disaster declaration. The protected environment is the
+# human approval step the design requires, and GitHub records who approved it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      fault:
+        description: "Failure to inject"
+        type: choice
+        options: [regional, instance, none]
+        default: regional
+        required: true
+      confirm:
+        description: "Type DRILL to confirm"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  drill:
+    if: inputs.confirm == 'DRILL'
+    runs-on: ubuntu-latest
+    environment: drill
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TF_ARN }}
+          aws-region: ${{ vars.AWS_REGION_PRIMARY }}
+          role-session-name: drlab-drill-${{ github.run_id }}
+
+      - name: Write backend configuration
+        run: |
+          cat > terraform/ephemeral/backend.hcl <<EOF
+          bucket       = "${{ vars.TF_STATE_BUCKET }}"
+          region       = "${{ vars.AWS_REGION_PRIMARY }}"
+          use_lockfile = true
+          encrypt      = true
+          EOF
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.1"
+
+      - name: Read current infrastructure outputs
+        run: |
+          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          terraform -chdir=terraform/ephemeral output -json > ephemeral-outputs.json
+
+      - name: Run the drill
+        run: |
+          pip install -r requirements-dev.txt
+          python scripts/drill.py --fault "${{ inputs.fault }}" --yes
+
+      - name: Publish the result
+        if: always()
+        run: |
+          echo "### Drill result" >> "$GITHUB_STEP_SUMMARY"
+          for file in results/*.json; do
+            [ -e "$file" ] || continue
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat "$file" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload the result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drill-result
+          path: results/*.json
+          retention-days: 30

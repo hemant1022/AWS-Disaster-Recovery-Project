@@ -46,7 +46,8 @@ jobs:
       - name: Destroy
         run: |
           pip install -r requirements-dev.txt
-          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          terraform -chdir=terraform/ephemeral init -input=false -no-color \
+            -backend-config=backend.hcl
           python scripts/teardown.py --yes
 
       - name: Publish the check

@@ -51,7 +51,8 @@ jobs:
 
       - name: Read current infrastructure outputs
         run: |
-          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          terraform -chdir=terraform/ephemeral init -input=false -no-color \
+            -backend-config=backend.hcl
           terraform -chdir=terraform/ephemeral output -json > ephemeral-outputs.json
 
       - name: Run the drill

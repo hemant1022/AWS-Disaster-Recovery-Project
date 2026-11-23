@@ -65,7 +65,9 @@ jobs:
 
       - name: Plan persistent
         run: |
-          terraform -chdir=terraform/persistent init -input=false -no-color
+          set -o pipefail
+          terraform -chdir=terraform/persistent init -input=false -no-color \
+            -backend-config=backend.hcl
           terraform -chdir=terraform/persistent plan -input=false -no-color \
             -var="domain_name=${{ vars.DOMAIN_NAME }}" \
             -var="alert_email=${{ vars.ALERT_EMAIL }}" \
@@ -74,7 +76,9 @@ jobs:
       - name: Plan ephemeral
         continue-on-error: true
         run: |
-          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          set -o pipefail
+          terraform -chdir=terraform/ephemeral init -input=false -no-color \
+            -backend-config=backend.hcl
           terraform -chdir=terraform/ephemeral plan -input=false -no-color \
             -var="domain_name=${{ vars.DOMAIN_NAME }}" \
             | tee ephemeral-plan.txt

@@ -56,7 +56,8 @@ jobs:
       - name: Apply persistent
         if: inputs.root == 'persistent'
         run: |
-          terraform -chdir=terraform/persistent init -input=false -no-color
+          terraform -chdir=terraform/persistent init -input=false -no-color \
+            -backend-config=backend.hcl
           terraform -chdir=terraform/persistent apply -auto-approve -input=false -no-color \
             -var="domain_name=${{ vars.DOMAIN_NAME }}" \
             -var="alert_email=${{ vars.ALERT_EMAIL }}"
@@ -64,7 +65,8 @@ jobs:
       - name: Apply ephemeral
         if: inputs.root == 'ephemeral'
         run: |
-          terraform -chdir=terraform/ephemeral init -input=false -no-color
+          terraform -chdir=terraform/ephemeral init -input=false -no-color \
+            -backend-config=backend.hcl
           terraform -chdir=terraform/ephemeral apply -auto-approve -input=false -no-color \
             -var="domain_name=${{ vars.DOMAIN_NAME }}"
 

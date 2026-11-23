@@ -1,0 +1,50 @@
+{
+  "drill": "combined-regional-failover",
+  "fault": "regional",
+  "actions": {
+    "fault": "regional",
+    "at": "2026-11-23T05:44:18.898340Z",
+    "stopped_instance": "i-03cd30d263fc6e030",
+    "deleted_db": "drlab-primary"
+  },
+  "fence": {
+    "fenced": true,
+    "at": "2026-11-23T05:46:49.454242Z"
+  },
+  "regions": {
+    "primary": "us-east-1",
+    "recovery": "us-east-2"
+  },
+  "epoch": 1,
+  "timeline": {
+    "fault": "2026-11-23T05:44:18.898326Z",
+    "alarm": "2026-11-23T11:16:39.046000+05:30",
+    "declare": "2026-11-23T05:46:45.611562Z",
+    "promote_start": "2026-11-23T05:48:15.283601Z",
+    "promoted": "2026-11-23T05:50:22.498267Z",
+    "first_write": "2026-11-23T05:50:23.117365Z",
+    "sustained": "2026-11-23T05:51:54.308301Z",
+    "dns_flip": "2026-11-23T05:51:57.953562Z",
+    "stop": "2026-11-23T05:52:11.237008Z"
+  },
+  "time_to_detection_seconds": 140.1,
+  "rto_seconds": 332.2,
+  "rto_segments_seconds": {
+    "decide": 6.6,
+    "act": 216.9,
+    "verify": 108.7
+  },
+  "rpo": {
+    "committed_rows": 7174,
+    "committed_from_ledger": 7174,
+    "committed_from_app": 7137,
+    "replicated_rows_at_fence": 7178,
+    "lost_rows": 0,
+    "ledger_last_commit": "2026-11-23T05:44:22.143293+00:00",
+    "note": "ledger flush interval bounds the floor of this measurement"
+  },
+  "replica_lag_before_seconds": 0.0,
+  "dns_verified_via_route53": true,
+  "dns_local_resolution": null,
+  "recorded_at": "2026-11-23T05:52:11.506385Z"
+}

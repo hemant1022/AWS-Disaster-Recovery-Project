@@ -69,11 +69,19 @@ Nothing in this table is an estimate.
 | Drill | Fault | Time to detection | RTO | RPO | Date |
 |---|---|---|---|---|---|
 | Baseline (5 min) | none | — | — | 0 (no failover) | 2026-11-23 |
-| Combined regional failover | primary RDS deleted, primary instance stopped | pending | pending | pending | pending |
-| Failback | rebuild region 1 and reverse | pending | pending | pending | pending |
+| Combined regional failover | primary RDS deleted, primary instance stopped | 140.1 s | 332.2 s | 0 rows | 2026-11-23 |
+| Failback | rebuild region 1 and reverse | not run yet | — | — | — |
 
 Baseline detail: 1,387 rows committed at 4.52 rows/second, 0 rejected writes,
 replication lag p50 0.0s / p95 1.0s / max 1.0s.
+
+Failover detail: 7,174 rows in the S3 ledger and 7,178 on the promoted database
+at the fence. The ledger flushes every two seconds, so those four rows are the
+measurement floor, not loss — no acknowledged write was missing. RTO split:
+decide 6.6 s, act 216.9 s, verify 108.7 s. Of the act segment, 85.8 s is the
+synchronous ledger scan used to compute RPO; the recovery-only path is about
+246 s. DNS was verified with `TestDNSAnswer`, and the state record ended at
+epoch 1, `active_region = us-east-2`, `phase = steady`.
 
 ## Repository layout
 

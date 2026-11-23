@@ -136,6 +136,16 @@ This is the same class of defect as the frozen-snapshot bug below — a number
 that looks plausible and is wrong. The gate makes it structurally impossible
 instead of remembering not to do it.
 
+### What the act segment contains
+
+In the 2026-11-23 run, `act` was 216.9 s. Of that, 85.8 s was the synchronous
+S3 ledger scan used to compute RPO, and 127.2 s was the promotion itself,
+including the reboot. The scan is measurement, not recovery. Now that the write
+gate freezes the standby until `write_enabled_region` moves, the position can be
+captured after promotion instead of before, which would put the recovery-only
+RTO near 246 s. Until that reorder has been measured, both numbers are reported:
+332.2 s as run, about 246 s excluding the measurement.
+
 Fault variants:
 
 | `--fault` | Damages | RPO fidelity |

@@ -62,6 +62,9 @@ variable "github_repo" {
   }
 }
 
+# Both IDs are visible in the OIDC token's sub claim. Decode it from a workflow
+# run if the owner or repository is ever recreated, because a new repository
+# gets a new ID and the old trust policy stops matching.
 variable "github_owner_id" {
   description = "Numeric ID of the GitHub owner, embedded in the immutable OIDC subject."
   type        = string

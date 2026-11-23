@@ -31,6 +31,19 @@ data "aws_caller_identity" "current" {}
 locals {
   account_id = data.aws_caller_identity.current.account_id
 
+  # GitHub embeds immutable owner and repository IDs in the OIDC subject:
+  #   repo:owner@OWNER_ID/repo@REPO_ID:environment:name
+  # The name-only form is still accepted, so a token minted before the rollout
+  # can deploy and a renamed repository keeps working without a policy edit.
+  github_subject_name = "repo:${var.github_repo}"
+  github_subject_ids = format(
+    "repo:%s@%s/%s@%s",
+    split("/", var.github_repo)[0],
+    var.github_owner_id,
+    split("/", var.github_repo)[1],
+    var.github_repo_id,
+  )
+
   tags = {
     Project   = var.project
     ManagedBy = "terraform"
@@ -258,7 +271,10 @@ data "aws_iam_policy_document" "github_app_deploy_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:environment:${var.github_environment_app}"]
+      values = [
+        "${local.github_subject_name}:environment:${var.github_environment_app}",
+        "${local.github_subject_ids}:environment:${var.github_environment_app}",
+      ]
     }
   }
 }
@@ -367,8 +383,10 @@ data "aws_iam_policy_document" "github_terraform_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_repo}:environment:${var.github_environment_terraform}",
-        "repo:${var.github_repo}:environment:${var.github_environment_drill}",
+        "${local.github_subject_name}:environment:${var.github_environment_terraform}",
+        "${local.github_subject_name}:environment:${var.github_environment_drill}",
+        "${local.github_subject_ids}:environment:${var.github_environment_terraform}",
+        "${local.github_subject_ids}:environment:${var.github_environment_drill}",
       ]
     }
   }

@@ -62,6 +62,18 @@ variable "github_repo" {
   }
 }
 
+variable "github_owner_id" {
+  description = "Numeric ID of the GitHub owner, embedded in the immutable OIDC subject."
+  type        = string
+  default     = "166102426"
+}
+
+variable "github_repo_id" {
+  description = "Numeric ID of the GitHub repository, embedded in the immutable OIDC subject."
+  type        = string
+  default     = "1466463063"
+}
+
 variable "github_environment_app" {
   description = "GitHub Environment allowed to push images and deploy."
   type        = string
